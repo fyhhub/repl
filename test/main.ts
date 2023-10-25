@@ -12,7 +12,7 @@ const App = {
       serializedState: location.hash.slice(1),
       showOutput: query.has('so'),
       outputMode: query.get('om') || 'preview',
-      vueVersion: '2.6.14'
+      defaultVueVersion: '2.7.15',
     }))
     // store.setVueVersion('2.7.15')
 
