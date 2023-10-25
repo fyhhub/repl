@@ -12,13 +12,9 @@ const App = {
       serializedState: location.hash.slice(1),
       showOutput: query.has('so'),
       outputMode: query.get('om') || 'preview',
-      defaultVueRuntimeURL: import.meta.env.PROD
-        ? undefined
-        : `${location.origin}/src/vue-dev-proxy`,
-      defaultVueServerRendererURL: import.meta.env.PROD
-        ? undefined
-        : `${location.origin}/src/vue-server-renderer-dev-proxy`,
+      vueVersion: '2.6.14'
     }))
+    // store.setVueVersion('2.7.15')
 
     console.log(store)
 
@@ -45,7 +41,7 @@ const App = {
         theme: 'dark',
         editor: MonacoEditor as any as EditorComponentType,
         // layout: 'vertical',
-        ssr: true,
+        ssr: false,
         sfcOptions: {
           script: {
             // inlineTemplate: false

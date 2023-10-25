@@ -59,7 +59,6 @@ function processFile(
   if (!isSSR && file.filename.endsWith('.html')) {
     return processHtmlFile(store, file.code, file.filename, processed, seen)
   }
-
   let {
     code: js,
     importedFiles,

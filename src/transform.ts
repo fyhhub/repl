@@ -1,10 +1,13 @@
 import { Store, File } from './store'
 import {
   SFCDescriptor,
-  BindingMetadata,
   CompilerOptions,
+} from 'compiler-sfc-browser-vue2'
+import {
+  BindingMetadata
 } from 'vue/compiler-sfc'
 import { transform } from 'sucrase'
+import { createCompiler } from './compiler-compatible';
 // @ts-ignore
 import hashId from 'hash-sum'
 
@@ -23,7 +26,6 @@ export async function compileFile(
   if (!code.trim()) {
     return []
   }
-
   if (filename.endsWith('.css')) {
     compiled.css = code
     return []
@@ -52,12 +54,17 @@ export async function compileFile(
   if (!filename.endsWith('.vue')) {
     return []
   }
-
   const id = hashId(filename)
-  const { errors, descriptor } = store.compiler.parse(code, {
+  const {
+    parse
+  } = createCompiler({
+    vueVersion: store.vueVersion,
+    code,
     filename,
-    sourceMap: true,
+    compiler: store.compiler
   })
+
+  const { errors, descriptor } = parse()
   if (errors.length) {
     return errors
   }
@@ -88,7 +95,6 @@ export async function compileFile(
     clientCode += code
     ssrCode += code
   }
-
   let clientScript: string
   let bindings: BindingMetadata | undefined
   try {
@@ -129,8 +135,8 @@ export async function compileFile(
   // template
   // only need dedicated compilation if not using <script setup>
   if (
-    descriptor.template &&
-    (!descriptor.scriptSetup || store.options?.script?.inlineTemplate === false)
+    descriptor.template
+    // (!descriptor.scriptSetup || store.options?.script?.inlineTemplate === false)
   ) {
     const clientTemplateResult = await doCompileTemplate(
       store,
@@ -153,6 +159,7 @@ export async function compileFile(
       true,
       isTS
     )
+
     if (typeof ssrTemplateResult === 'string') {
       // ssr compile failure is fine
       ssrCode += `;${ssrTemplateResult}`
@@ -223,18 +230,9 @@ async function doCompileScript(
       ? ['typescript']
       : undefined
     const compiledScript = store.compiler.compileScript(descriptor, {
-      inlineTemplate: true,
       ...store.options?.script,
       id,
-      templateOptions: {
-        ...store.options?.template,
-        ssr,
-        ssrCssVars: descriptor.cssVars,
-        compilerOptions: {
-          ...store.options?.template?.compilerOptions,
-          expressionPlugins,
-        },
-      },
+      isProd: false
     })
     let code = ''
     if (compiledScript.bindings) {
@@ -270,22 +268,24 @@ async function doCompileTemplate(
   ssr: boolean,
   isTS: boolean
 ) {
-  let { code, errors } = store.compiler.compileTemplate({
+  let result = store.compiler.compileTemplate({
     isProd: false,
     ...store.options?.template,
     source: descriptor.template!.content,
     filename: descriptor.filename,
     id,
     scoped: descriptor.styles.some((s) => s.scoped),
-    slotted: descriptor.slotted,
     ssr,
-    ssrCssVars: descriptor.cssVars,
+    prettify: false,
+    bindings: bindingMetadata,
     compilerOptions: {
       ...store.options?.template?.compilerOptions,
-      bindingMetadata,
       expressionPlugins: isTS ? ['typescript'] : undefined,
     },
   })
+  console.log("%c Line:274 🍣 code", "color:#fca650", result);
+  let { code, errors } = result;
+
   if (errors.length) {
     return errors
   }

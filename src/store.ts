@@ -1,5 +1,6 @@
 import { version, reactive, watchEffect, watch } from 'vue'
 import * as defaultCompiler from 'vue/compiler-sfc'
+import * as defaultCompilerVue2 from 'compiler-sfc-browser-vue2'
 import { compileFile } from './transform'
 import { utoa, atou } from './utils'
 import {
@@ -103,7 +104,7 @@ export interface SFCOptions {
 export interface Store {
   state: StoreState
   options?: SFCOptions
-  compiler: typeof defaultCompiler
+  compiler: typeof defaultCompilerVue2 | typeof defaultCompiler;
   vueVersion?: string
   init: () => void
   setActive: (filename: string) => void
@@ -124,12 +125,13 @@ export interface StoreOptions {
   outputMode?: OutputModes | string
   defaultVueRuntimeURL?: string
   defaultVueServerRendererURL?: string
+  vueVersion?: string;
 }
 
 export class ReplStore implements Store {
   state: StoreState
   compiler = defaultCompiler
-  vueVersion?: string
+  vueVersion!: string
   options?: SFCOptions
   initialShowOutput: boolean
   initialOutputMode: OutputModes
@@ -145,6 +147,7 @@ export class ReplStore implements Store {
     defaultVueServerRendererURL = `https://cdn.jsdelivr.net/npm/@vue/server-renderer@${version}/dist/server-renderer.esm-browser.js`,
     showOutput = false,
     outputMode = 'preview',
+    vueVersion = '3.3.4'
   }: StoreOptions = {}) {
     const files: StoreState['files'] = {}
 
@@ -161,10 +164,14 @@ export class ReplStore implements Store {
     this.defaultVueServerRendererURL = defaultVueServerRendererURL
     this.initialShowOutput = showOutput
     this.initialOutputMode = outputMode as OutputModes
-
+    this.vueVersion = vueVersion;
     let mainFile = defaultMainFile
     if (!files[mainFile]) {
       mainFile = Object.keys(files)[0]
+    }
+
+    if (vueVersion.startsWith('2.')) {
+      this.compiler = defaultCompilerVue2 as any;
     }
     this.state = reactive({
       mainFile,

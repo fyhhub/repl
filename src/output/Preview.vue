@@ -188,27 +188,36 @@ async function updatePreview() {
       console.log(
         `[@vue/repl] successfully compiled ${ssrModules.length} modules for SSR.`
       )
-      await proxy.eval([
-        `const __modules__ = {};`,
-        ...ssrModules,
-        `import { renderToString as _renderToString } from 'vue/server-renderer'
-         import { createSSRApp as _createApp } from 'vue'
-         const AppComponent = __modules__["${mainFile}"].default
-         AppComponent.name = 'Repl'
-         const app = _createApp(AppComponent)
-         if (!app.config.hasOwnProperty('unwrapInjectedRef')) {
-           app.config.unwrapInjectedRef = true
-         }
-         app.config.warnHandler = () => {}
-         window.__ssr_promise__ = _renderToString(app).then(html => {
-           document.body.innerHTML = '<div id="app">' + html + '</div>' + \`${
-             previewOptions?.bodyHTML || ''
-           }\`
-         }).catch(err => {
-           console.error("SSR Error", err)
-         })
-        `,
-      ])
+      if (store.vueVersion?.startsWith('2.')) {
+        await proxy.eval([
+          `const __modules__ = {};`,
+          ...ssrModules,
+          `
+          import Vue from 'vue'
+          const AppComponent = window.__modules__["${mainFile}"].default
+          AppComponent.name = 'Repl'
+          const app = new Vue(AppComponent)
+          `,
+        ])
+      } else {
+        await proxy.eval([
+          `const __modules__ = {};`,
+          ...ssrModules,
+          `import { renderToString as _renderToString } from 'vue/server-renderer'
+          import { createSSRApp as _createApp } from 'vue'
+          const AppComponent = __modules__["${mainFile}"].default
+          AppComponent.name = 'Repl'
+          const app = _createApp(AppComponent)
+          window.__ssr_promise__ = _renderToString(app).then(html => {
+            document.body.innerHTML = '<div id="app">' + html + '</div>' + \`${
+              previewOptions?.bodyHTML || ''
+            }\`
+          }).catch(err => {
+            console.error("SSR Error", err)
+          })
+          `,
+        ])
+      }
     }
 
     // compile code to simulated module system
@@ -221,7 +230,9 @@ async function updatePreview() {
 
     const codeToEval = [
       `window.__modules__ = {};window.__css__ = [];` +
-        `if (window.__app__) window.__app__.unmount();` +
+        `if (window.__app__) window.__app__.${
+          store.vueVersion?.startsWith('2.') ? '$destroy' : 'unmount'
+        }();` +
         (isSSR
           ? ``
           : `document.body.innerHTML = '<div id="app"></div>' + \`${
@@ -236,10 +247,31 @@ async function updatePreview() {
 
     // if main file is a vue file, mount it.
     if (mainFile.endsWith('.vue')) {
-      codeToEval.push(
-        `import { ${
-          isSSR ? `createSSRApp` : `createApp`
-        } as _createApp } from "vue"
+      if (store.vueVersion?.startsWith('2.')) {
+        codeToEval.push(
+          `import Vue from "vue"
+        ${previewOptions?.customCode?.importCode || ''}
+        const _mount = () => {
+          const AppComponent = __modules__["${mainFile}"].default
+          console.log("%c Line:253 🍤 AppComponent", "color:#ea7e5c", AppComponent);
+          AppComponent.name = 'Repl'
+          const app = window.__app__ = new Vue({
+            render: h => h(AppComponent)
+          });
+          ${previewOptions?.customCode?.useCode || ''}
+          app.$mount('#app')
+        }
+        if (window.__ssr_promise__) {
+          window.__ssr_promise__.then(_mount)
+        } else {
+          _mount()
+        }`
+        )
+      } else {
+        codeToEval.push(
+          `import { ${
+            isSSR ? `createSSRApp` : `createApp`
+          } as _createApp } from "vue"
         ${previewOptions?.customCode?.importCode || ''}
         const _mount = () => {
           const AppComponent = __modules__["${mainFile}"].default
@@ -257,9 +289,9 @@ async function updatePreview() {
         } else {
           _mount()
         }`
-      )
+        )
+      }
     }
-
     // eval code in sandbox
     await proxy.eval(codeToEval)
   } catch (e: any) {

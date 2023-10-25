@@ -22,6 +22,9 @@ export default defineConfig({
       ignore: ['typescript'],
     },
   },
+  server:{
+    host: '127.0.0.1'
+  },
   worker: {
     format: 'es',
     plugins: [
