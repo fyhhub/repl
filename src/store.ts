@@ -430,8 +430,17 @@ export class ReplStore implements Store {
     imports['vue/server-renderer'] = ssrUrl
     this.setImportMap(importMap)
     this.forceSandboxReset()
-    this.init();
-    // this.reloadLanguageTools?.()
+    compileFile(this, this.state.activeFile).then(
+      (errs) => (this.state.errors = errs)
+    )
+    this.state.errors = []
+    for (const file in this.state.files) {
+      if (file !== defaultMainFile) {
+        compileFile(this, this.state.files[file]).then((errs) =>
+          this.state.errors.push(...errs)
+        )
+      }
+    }
     console.info(`[@vue/repl] Now using Vue version: ${version}`)
   }
 

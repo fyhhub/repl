@@ -68,10 +68,12 @@ export async function compileFile(
     (descriptor.styles.some((s: any) => s.lang) ||
     (descriptor.template && descriptor.template.lang))
   ) {
-    return [
-      `lang="x" pre-processors for <template> or <style> are currently not ` +
-        `supported.`,
-    ]
+    if (store.vueVersion?.startsWith('3.')) {
+      return [
+        `lang="x" pre-processors for <template> or <style> are currently not ` +
+          `supported.`,
+      ]
+    }
   }
 
   const scriptLang =
