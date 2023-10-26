@@ -1,13 +1,8 @@
 import { Store, File } from './store'
-import {
-  SFCDescriptor,
-  CompilerOptions,
-} from 'compiler-sfc-browser-vue2'
-import {
-  BindingMetadata
-} from 'vue/compiler-sfc'
+import { SFCDescriptor } from 'compiler-sfc-browser-vue2'
+import { BindingMetadata } from 'vue/compiler-sfc'
 import { transform } from 'sucrase'
-import { createCompiler } from './compiler-compatible';
+import { parse, compileScript, compileTemplate } from './compiler-compatible'
 // @ts-ignore
 import hashId from 'hash-sum'
 
@@ -55,23 +50,23 @@ export async function compileFile(
     return []
   }
   const id = hashId(filename)
-  const {
-    parse
-  } = createCompiler({
-    vueVersion: store.vueVersion,
+
+  const { errors, descriptor } = parse({
+    store,
     code,
     filename,
-    compiler: store.compiler
   })
-
-  const { errors, descriptor } = parse()
   if (errors.length) {
     return errors
   }
+  if (!descriptor) {
+    return [];
+  }
 
   if (
-    descriptor.styles.some((s) => s.lang) ||
-    (descriptor.template && descriptor.template.lang)
+    descriptor &&
+    (descriptor.styles.some((s: any) => s.lang) ||
+    (descriptor.template && descriptor.template.lang))
   ) {
     return [
       `lang="x" pre-processors for <template> or <style> are currently not ` +
@@ -87,7 +82,7 @@ export async function compileFile(
     return [`Only lang="ts" is supported for <script> blocks.`]
   }
 
-  const hasScoped = descriptor.styles.some((s) => s.scoped)
+  const hasScoped = descriptor.styles.some((s: any) => s.scoped)
   let clientCode = ''
   let ssrCode = ''
 
@@ -135,8 +130,9 @@ export async function compileFile(
   // template
   // only need dedicated compilation if not using <script setup>
   if (
-    descriptor.template
-    // (!descriptor.scriptSetup || store.options?.script?.inlineTemplate === false)
+    (descriptor.template &&
+      (!descriptor.scriptSetup || store.options?.script?.inlineTemplate === false)) // Vue3
+    || (descriptor.template && store.vueVersion?.startsWith('2.'))
   ) {
     const clientTemplateResult = await doCompileTemplate(
       store,
@@ -226,13 +222,13 @@ async function doCompileScript(
   isTS: boolean
 ): Promise<[code: string, bindings: BindingMetadata | undefined]> {
   if (descriptor.script || descriptor.scriptSetup) {
-    const expressionPlugins: CompilerOptions['expressionPlugins'] = isTS
-      ? ['typescript']
-      : undefined
-    const compiledScript = store.compiler.compileScript(descriptor, {
-      ...store.options?.script,
+    const compiledScript = compileScript({
+      descriptor,
+      store,
       id,
-      isProd: false
+      isProd: false,
+      ssr,
+      isTS,
     })
     let code = ''
     if (compiledScript.bindings) {
@@ -247,14 +243,14 @@ async function doCompileScript(
       store.compiler.rewriteDefault(
         compiledScript.content,
         COMP_IDENTIFIER,
-        expressionPlugins
+        isTS ? ['typescript'] : []
       )
 
     if ((descriptor.script || descriptor.scriptSetup)!.lang === 'ts') {
       code = await transformTS(code)
     }
 
-    return [code, compiledScript.bindings]
+    return [code, compiledScript.bindings as any]
   } else {
     return [`\nconst ${COMP_IDENTIFIER} = {}`, undefined]
   }
@@ -268,23 +264,16 @@ async function doCompileTemplate(
   ssr: boolean,
   isTS: boolean
 ) {
-  let result = store.compiler.compileTemplate({
-    isProd: false,
-    ...store.options?.template,
-    source: descriptor.template!.content,
-    filename: descriptor.filename,
-    id,
-    scoped: descriptor.styles.some((s) => s.scoped),
+  let result = compileTemplate({
+    descriptor,
     ssr,
-    prettify: false,
-    bindings: bindingMetadata,
-    compilerOptions: {
-      ...store.options?.template?.compilerOptions,
-      expressionPlugins: isTS ? ['typescript'] : undefined,
-    },
+    store,
+    id,
+    bindingMetadata,
+    isTS,
   })
-  console.log("%c Line:274 🍣 code", "color:#fca650", result);
-  let { code, errors } = result;
+
+  let { code, errors } = result
 
   if (errors.length) {
     return errors

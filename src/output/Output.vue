@@ -16,7 +16,7 @@ const previewRef = ref<InstanceType<typeof Preview>>()
 const modes = computed(() =>
   props.showCompileOutput
     ? (['preview', 'js', 'css', 'ssr'] as const)
-    : (['preview'] as const)
+    : ([] as const)
 )
 
 const mode = ref<OutputModes>(
@@ -33,7 +33,7 @@ defineExpose({ reload })
 </script>
 
 <template>
-  <div class="tab-buttons">
+  <div class="tab-buttons" v-if="modes.length">
     <button
       v-for="m of modes"
       :class="{ active: mode === m }"
@@ -43,7 +43,7 @@ defineExpose({ reload })
     </button>
   </div>
 
-  <div class="output-container">
+  <div class="output-container" :style="{height: modes.length ? '' : '100%'}">
     <Preview ref="previewRef" :show="mode === 'preview'" :ssr="ssr" />
     <props.editorComponent
       v-if="mode !== 'preview'"

@@ -104,7 +104,7 @@ export interface SFCOptions {
 export interface Store {
   state: StoreState
   options?: SFCOptions
-  compiler: typeof defaultCompilerVue2 | typeof defaultCompiler
+  compiler: any;
   vueVersion?: string
   init: () => void
   setActive: (filename: string) => void
@@ -116,7 +116,7 @@ export interface Store {
   reloadLanguageTools?: undefined | (() => void)
   initialShowOutput: boolean
   initialOutputMode: OutputModes
-}
+  }
 
 export interface StoreOptions {
   serializedState?: string
@@ -126,7 +126,7 @@ export interface StoreOptions {
   defaultVueRuntimeURL?: string
   defaultVueServerRendererURL?: string
   defaultVueVersion?: string
-}
+  }
 
 const getVueRuntimeUrl = (version: string) => {
   return version.startsWith('3.')
@@ -134,15 +134,10 @@ const getVueRuntimeUrl = (version: string) => {
     : `https://cdn.jsdelivr.net/npm/vue@${version}/dist/vue.esm.browser.js`
 }
 
-const getVueCompilerUrl = (version: string) => {
-  return version.startsWith('3.')
-    ? `https://cdn.jsdelivr.net/npm/@vue/compiler-sfc@${version}/dist/compiler-sfc.esm-browser.js`
-    : `https://cdn.jsdelivr.net/npm/compiler-sfc-browser-vue2@0.0.2/dist/index.esm.js`
-}
 
 export class ReplStore implements Store {
   state: StoreState
-  compiler = defaultCompiler
+  compiler: any = defaultCompiler
   vueVersion!: string
   options?: SFCOptions
   initialShowOutput: boolean
@@ -150,8 +145,6 @@ export class ReplStore implements Store {
   reloadLanguageTools: undefined | (() => void)
   private defaultVueRuntimeURL: string
   private defaultVueServerRendererURL: string
-  private pendingCompiler: Promise<any> | null = null
-
   constructor({
     serializedState = '',
     defaultVueRuntimeURL,
@@ -159,7 +152,7 @@ export class ReplStore implements Store {
     showOutput = false,
     outputMode = 'preview',
     defaultVueVersion = '3.3.4',
-  }: StoreOptions = {}) {
+      }: StoreOptions = {}) {
     const files: StoreState['files'] = {}
     if (serializedState) {
       const saved = JSON.parse(atou(serializedState))
@@ -173,10 +166,11 @@ export class ReplStore implements Store {
     this.vueVersion = defaultVueVersion
     this.defaultVueRuntimeURL =
       defaultVueRuntimeURL || getVueRuntimeUrl(this.vueVersion)
+
     this.defaultVueServerRendererURL = defaultVueServerRendererURL
     this.initialShowOutput = showOutput
     this.initialOutputMode = outputMode as OutputModes
-    let mainFile = defaultMainFile
+        let mainFile = defaultMainFile
     if (!files[mainFile]) {
       mainFile = Object.keys(files)[0]
     }
@@ -424,12 +418,10 @@ export class ReplStore implements Store {
 
   async setVueVersion(version: string) {
     this.vueVersion = version
-    const compilerUrl = getVueCompilerUrl(version)
     const runtimeUrl = getVueRuntimeUrl(version)
     const ssrUrl = `https://cdn.jsdelivr.net/npm/@vue/server-renderer@${version}/dist/server-renderer.esm-browser.js`
-    this.pendingCompiler = import(/* @vite-ignore */ compilerUrl)
-    this.compiler = await this.pendingCompiler
-    this.pendingCompiler = null
+    this.compiler = version.startsWith('2.') ? defaultCompilerVue2 : defaultCompiler;
+
     this.state.vueRuntimeURL = runtimeUrl
     this.state.vueServerRendererURL = ssrUrl
     const importMap = this.getImportMap()
@@ -438,12 +430,13 @@ export class ReplStore implements Store {
     imports['vue/server-renderer'] = ssrUrl
     this.setImportMap(importMap)
     this.forceSandboxReset()
-    this.reloadLanguageTools?.()
+    this.init();
+    // this.reloadLanguageTools?.()
     console.info(`[@vue/repl] Now using Vue version: ${version}`)
   }
 
   resetVueVersion() {
-    this.vueVersion = undefined
+    this.vueVersion = '';
     this.compiler = defaultCompiler
     this.state.vueRuntimeURL = this.defaultVueRuntimeURL
     this.state.vueServerRendererURL = this.defaultVueServerRendererURL

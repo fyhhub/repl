@@ -14,6 +14,8 @@ const props = defineProps<{
 }>()
 
 const store = inject('store') as Store
+const showFileSelector = inject('showFileSelector');
+const showMessageToggle = inject('showMessageToggle');
 const showMessage = ref(getItem())
 
 const onChange = debounce((code: string) => {
@@ -35,15 +37,15 @@ watch(showMessage, () => {
 </script>
 
 <template>
-  <FileSelector />
+  <FileSelector v-if="showFileSelector"/>
   <div class="editor-container">
     <props.editorComponent
       @change="onChange"
       :value="store.state.activeFile.code"
       :filename="store.state.activeFile.filename"
     />
-    <Message v-show="showMessage" :err="store.state.errors[0]" />
-    <MessageToggle v-model="showMessage" />
+    <Message v-show="showMessage" :err="store.state.errors[0]" v-if="showMessageToggle"/>
+    <MessageToggle v-model="showMessage" v-if="showMessageToggle"/>
   </div>
 </template>
 

@@ -20,6 +20,7 @@ const props = defineProps<{ show: boolean; ssr: boolean }>()
 
 const store = inject('store') as Store
 const clearConsole = inject('clear-console') as Ref<boolean>
+const showError = inject('showError') as Ref<boolean>
 
 const previewOptions = inject('preview-options') as Props['previewOptions']
 
@@ -46,7 +47,6 @@ watch(
     }
   }
 )
-
 // reset sandbox when version changes
 watch(() => store.state.resetFlip, createSandbox)
 
@@ -253,14 +253,13 @@ async function updatePreview() {
         ${previewOptions?.customCode?.importCode || ''}
         const _mount = () => {
           const AppComponent = __modules__["${mainFile}"].default
-          console.log("%c Line:253 🍤 AppComponent", "color:#ea7e5c", AppComponent);
           AppComponent.name = 'Repl'
           const app = window.__app__ = new Vue({
             render: h => h(AppComponent)
           });
           ${previewOptions?.customCode?.useCode || ''}
           app.$mount('#app')
-        }
+                  }
         if (window.__ssr_promise__) {
           window.__ssr_promise__.then(_mount)
         } else {
@@ -283,7 +282,7 @@ async function updatePreview() {
           app.config.errorHandler = e => console.error(e)
           ${previewOptions?.customCode?.useCode || ''}
           app.mount('#app')
-        }
+                  }
         if (window.__ssr_promise__) {
           window.__ssr_promise__.then(_mount)
         } else {
@@ -312,8 +311,8 @@ defineExpose({ reload })
 
 <template>
   <div class="iframe-container" v-show="show" ref="container"></div>
-  <Message :err="runtimeError" />
-  <Message v-if="!runtimeError" :warn="runtimeWarning" />
+  <Message :err="runtimeError" v-if="showError"/>
+  <Message v-if="!runtimeError && showError" :warn="runtimeWarning" />
 </template>
 
 <style scoped>

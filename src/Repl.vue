@@ -14,10 +14,14 @@ export interface Props {
   showCompileOutput?: boolean
   showImportMap?: boolean
   showTsConfig?: boolean
+  showError?: boolean;
+  showFileSelector?: boolean;
+  showMessageToggle?: boolean;
   clearConsole?: boolean
   sfcOptions?: SFCOptions
   layout?: 'horizontal' | 'vertical'
   ssr?: boolean
+  layoutComponent?: any;
   previewOptions?: {
     headHTML?: string
     bodyHTML?: string
@@ -37,6 +41,10 @@ const props = withDefaults(defineProps<Props>(), {
   showImportMap: true,
   showTsConfig: true,
   clearConsole: true,
+  layoutComponent: null,
+  showMessageToggle: true,
+  showError: true,
+  showFileSelector: true,
   ssr: false,
   previewOptions: () => ({
     headHTML: '',
@@ -79,7 +87,11 @@ provide('import-map', toRef(props, 'showImportMap'))
 provide('tsconfig', toRef(props, 'showTsConfig'))
 provide('clear-console', toRef(props, 'clearConsole'))
 provide('preview-options', props.previewOptions)
+provide('preview-options', props.previewOptions)
 provide('theme', toRef(props, 'theme'))
+provide('showMessageToggle', toRef(props, 'showMessageToggle'))
+provide('showError', toRef(props, 'showError'))
+provide('showFileSelector', toRef(props, 'showFileSelector'))
 /**
  * Reload the preview iframe
  */
@@ -92,7 +104,20 @@ defineExpose({ reload })
 
 <template>
   <div class="vue-repl">
-    <SplitPane :layout="layout">
+    <props.layoutComponent v-if="props.layoutComponent">
+      <template #preview>
+        <Output
+          ref="outputRef"
+          :editorComponent="editor"
+          :showCompileOutput="props.showCompileOutput"
+          :ssr="!!props.ssr"
+        />
+      </template>
+      <template #editor>
+        <EditorContainer :editorComponent="editor" />
+      </template>
+    </props.layoutComponent>
+    <SplitPane :layout="layout" v-else>
       <template #left>
         <EditorContainer :editorComponent="editor" />
       </template>
