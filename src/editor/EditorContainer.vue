@@ -38,7 +38,7 @@ watch(showMessage, () => {
 
 <template>
   <FileSelector v-if="showFileSelector"/>
-  <div class="editor-container">
+  <div class="editor-container" :style="{height: showFileSelector ? '' : '100%'}">
     <props.editorComponent
       @change="onChange"
       :value="store.state.activeFile.code"

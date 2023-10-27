@@ -63,19 +63,6 @@ export async function compileFile(
     return [];
   }
 
-  if (
-    descriptor &&
-    (descriptor.styles.some((s: any) => s.lang) ||
-    (descriptor.template && descriptor.template.lang))
-  ) {
-    if (store.vueVersion?.startsWith('3.')) {
-      return [
-        `lang="x" pre-processors for <template> or <style> are currently not ` +
-          `supported.`,
-      ]
-    }
-  }
-
   const scriptLang =
     (descriptor.script && descriptor.script.lang) ||
     (descriptor.scriptSetup && descriptor.scriptSetup.lang)
